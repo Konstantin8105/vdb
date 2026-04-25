@@ -84,7 +84,7 @@ func splitByContextTokens(filename string, tokens int) (documents []*vdb.Documen
 
 func main() {
 	var (
-		location  = flag.String("location", "./data/", "location of source texts")
+		location  = flag.String("location", "./data/*.txt", "location of source texts")
 		queryText = flag.String("query", "Capital of France", "Query to RAG and acceptable a few query separate by ;")
 		amount    = flag.Int("amount", 4, "amount parts from vector DB")
 		reindex   = flag.Bool("reindex", false, "reindex or create a new database")
@@ -110,7 +110,7 @@ func main() {
 	}
 	// reindex if need
 	if *reindex {
-		files, err := filepath.Glob(filepath.Join(*location, "*"))
+		files, err := filepath.Glob(*location)
 		if err != nil {
 			panic(err)
 		}
