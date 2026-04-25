@@ -318,9 +318,9 @@ const (
 	ChebyshevDistance
 )
 
-// Calculate вычисляет выбранную метрику между двумя векторами a и b.
-// Предполагается, что a и b имеют одинаковую длину. Если длина разная,
-// функция возвращает 0 (можно также добавить panic или ошибку).
+// Calculate computes the selected metric between two vectors a and b.
+// Assumes a and b have the same length. If lengths differ or length is zero,
+// the function returns 0 (can also panic or return an error if desired).
 func (c CompareVector) Calculate(a, b []float32) float32 {
 	if len(a) != len(b) || len(a) == 0 {
 		return 0
@@ -329,6 +329,14 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 
 	switch c {
 	case CosineSimilarity:
+		// Cosine Similarity:
+		// Description: measures the cosine of the angle between vectors, ignoring their magnitude.
+		// Result range: from -1 to 1.
+		//   -1 – vectors point in opposite directions,
+		//    0 – orthogonal (independent),
+		//    1 – exactly the same direction.
+		// For typical embeddings (non-negative features) the result lies in [0,1].
+		// The closer to 1, the semantically closer the vectors.
 		var dot, normA, normB float64
 		for i := range n {
 			ai, bi := float64(a[i]), float64(b[i])
@@ -342,6 +350,12 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 		return float32(dot / (math.Sqrt(normA) * math.Sqrt(normB)))
 
 	case EuclideanDistance:
+		// Euclidean Distance (L2):
+		// Description: geometric distance between points in multi‑dimensional space.
+		// Result range: from 0 to +∞.
+		//   0 – vectors are identical,
+		//   larger values indicate vectors are farther apart.
+		// Sensitive to feature scale; normalization recommended.
 		var sum float64
 		for i := range n {
 			diff := float64(a[i] - b[i])
@@ -350,6 +364,12 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 		return float32(math.Sqrt(sum))
 
 	case ManhattanDistance:
+		// Manhattan Distance (L1, Cityblock):
+		// Description: sum of absolute differences along each coordinate.
+		// Result range: from 0 to +∞.
+		//   0 – vectors are identical,
+		//   larger values indicate larger differences.
+		// More robust to outliers than Euclidean distance, and computationally cheaper.
 		var sum float64
 		for i := range n {
 			sum += math.Abs(float64(a[i] - b[i]))
@@ -357,6 +377,12 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 		return float32(sum)
 
 	case DotProduct:
+		// Dot Product:
+		// Description: sum of products of corresponding components.
+		// Result range: from -∞ to +∞ (depends on vector lengths and values).
+		// For normalized (L2‑norm=1) vectors it equals cosine similarity.
+		// Large positive value indicates closeness in direction and/or magnitude.
+		// Fastest to compute; widely used in vector databases.
 		var dot float64
 		for i := range n {
 			dot += float64(a[i]) * float64(b[i])
@@ -364,7 +390,16 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 		return float32(dot)
 
 	case PearsonCorrelation:
-		// Вычисляем средние арифметические
+		// Pearson Correlation:
+		// Description: measures linear dependence between vector components,
+		// centering each vector (subtracting the mean). Effectively cosine similarity
+		// of centered data.
+		// Result range: from -1 to 1.
+		//   -1 – perfect negative correlation,
+		//    0 – uncorrelated,
+		//    1 – perfect positive correlation.
+		// Useful for features with non‑zero mean, but often unnecessary for typical embeddings.
+		// Compute arithmetic means
 		var meanA, meanB float64
 		for i := range n {
 			meanA += float64(a[i])
@@ -387,6 +422,12 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 		return float32(num / (math.Sqrt(denA) * math.Sqrt(denB)))
 
 	case ChebyshevDistance:
+		// Chebyshev Distance (L∞):
+		// Description: maximum absolute difference along any coordinate.
+		// Result range: from 0 to +∞.
+		//   0 – vectors are identical,
+		//   larger value means vectors differ significantly in at least one coordinate.
+		// Useful when only the maximum deviation matters, but loses information about other coordinates.
 		var maxDiff float64
 		for i := range n {
 			diff := math.Abs(float64(a[i] - b[i]))
@@ -397,6 +438,7 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 		return float32(maxDiff)
 
 	default:
+		// Unknown comparison type – return 0.
 		return 0
 	}
 }
