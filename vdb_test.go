@@ -32,12 +32,7 @@ func Test(t *testing.T) {
 						t.Fatal(err)
 					}
 
-					_, err = collection.Query("", QueryOption{})
-					if err == nil {
-						t.Fatalf("err is nil")
-					}
-
-					rs, err := collection.Query("one", QueryOption{DocFilter: func(doc *Document) (store bool) { return true }})
+					rs, err := collection.Query([]string{"one"}, QueryOption{DocFilter: func(doc *Document) (store bool) { return true }})
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -65,14 +60,14 @@ func Test(t *testing.T) {
 						t.Fatalf("not valid amount")
 					}
 
-					rs, err = collection.Query("one", QueryOption{MinimalDistance: -1})
+					rs, err = collection.Query([]string{"one"}, QueryOption{MinimalDistance: -1})
 					if err != nil {
 						t.Fatal(err)
 					}
 					if len(rs) != 2 {
 						t.Fatalf("not valid amount: %d", len(rs))
 					}
-					rs, err = collection.Query("one", QueryOption{DocFilter: func(doc *Document) (store bool) { return true }})
+					rs, err = collection.Query([]string{"one"}, QueryOption{DocFilter: func(doc *Document) (store bool) { return true }})
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -92,7 +87,7 @@ func Test(t *testing.T) {
 					if len(collection2.Documents) != 2 {
 						t.Fatalf("not valid amount: %d", len(collection2.Documents))
 					}
-					rs, err = collection.Query("one", QueryOption{MinimalDistance: -1, MaxAmount: 1})
+					rs, err = collection.Query([]string{"one"}, QueryOption{MinimalDistance: -1, MaxAmount: 1})
 					if err != nil {
 						t.Fatal(err)
 					}

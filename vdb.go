@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -310,12 +311,11 @@ type QueryOption struct {
 	MinimalDistance float32 // [-1...+1]
 }
 
-func (collection *Collection) Query(queryText string, options QueryOption) (_ []*Document, err error) {
-	if queryText == "" {
-		err = fmt.Errorf("queryText is empty")
+func (collection *Collection) Query(queryTexts []string, options QueryOption) (_ []*Document, err error) {
+	if len(queryTexts) == 0 {
 		return
 	}
-
+	// filtration
 	var docs []*Document
 	if options.DocFilter == nil {
 		docs = collection.Documents
@@ -330,12 +330,7 @@ func (collection *Collection) Query(queryText string, options QueryOption) (_ []
 	if len(docs) == 0 {
 		return nil, nil
 	}
-
-	queryCode, err := collection.Embed.Calculate(queryText)
-	if err != nil {
-		return
-	}
-
+	// prepare array
 	type sim struct {
 		doc   *Document
 		value float32 // similarity
@@ -343,16 +338,38 @@ func (collection *Collection) Query(queryText string, options QueryOption) (_ []
 	sims := make([]sim, len(docs))
 	for i := range docs {
 		sims[i].doc = docs[i]
-		sims[i].value, err = dotProduct(queryCode, docs[i].Code)
+	}
+	// calculation
+	amount := 0
+	for _, queryText := range queryTexts {
+		queryText = strings.TrimSpace(queryText)
+		if queryText == "" {
+			continue
+		}
+		var queryCode []float32
+		queryCode, err = collection.Embed.Calculate(queryText)
 		if err != nil {
 			return
 		}
+		for i := range docs {
+			var value float32
+			value, err = dotProduct(queryCode, docs[i].Code)
+			if err != nil {
+				return
+			}
+			sims[i].value += value
+		}
+		amount++
 	}
-
+	// normalize
+	for i := range sims {
+		sims[i].value /= float32(amount)
+	}
+	// sort
 	sort.Slice(sims, func(i, j int) bool {
 		return sims[j].value < sims[i].value
 	})
-
+	// store only with acceptable distance
 	var res []*Document
 	for i := range sims {
 		if sims[i].value < options.MinimalDistance {
@@ -360,7 +377,7 @@ func (collection *Collection) Query(queryText string, options QueryOption) (_ []
 		}
 		res = append(res, sims[i].doc)
 	}
-
+	// filter by amount
 	if 0 < options.MaxAmount && options.MaxAmount < len(res) {
 		res = res[:options.MaxAmount]
 	}

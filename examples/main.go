@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"unicode"
 
@@ -82,17 +83,25 @@ func splitByContextTokens(filename string, tokens int) (documents []*vdb.Documen
 }
 
 func main() {
-	queryText := flag.String("query", "Capital of France", "Query to RAG")
-	amount := flag.Int("amount", 4, "amount parts from vector DB")
-	reindex := flag.Bool("reindex", false, "reindex or create a new database")
+	var (
+		location  = flag.String("location", "./data/", "location of source texts")
+		queryText = flag.String("query", "Capital of France", "Query to RAG and acceptable a few query separate by ;")
+		amount    = flag.Int("amount", 4, "amount parts from vector DB")
+		reindex   = flag.Bool("reindex", false, "reindex or create a new database")
+		contains  = flag.String("contains", "", "Contains strings separate by ;")
+		factor    = flag.Uint("factor", 1, "contex size devided to factor for minimaze text")
+	)
 	flag.Parse()
 
 	// embeder
 	embed := vdb.Embeder{
-		Model:       "text-embedding-nomic-embed-text-v1.5@q8_0",
+		// BAD MODELS:
+		// "text-embedding-nomic-embed-text-v1.5@q8_0", 2048
+		//
+		Model:       "text-embedding-qwen3-embedding-0.6b",
 		Endpoint:    "http://127.0.0.1:1234/v1",
 		Key:         "lmstudio",
-		ContextSize: 2048,
+		ContextSize: 10000,
 	}
 	// create collection if not exist
 	collection, err := vdb.New("./rag/", true, embed)
@@ -101,12 +110,12 @@ func main() {
 	}
 	// reindex if need
 	if *reindex {
-		files, err := filepath.Glob(filepath.Join("data", "*.txt"))
+		files, err := filepath.Glob(filepath.Join(*location, "*"))
 		if err != nil {
 			panic(err)
 		}
 		for pos, file := range files {
-			docs := splitByContextTokens(file, embed.ContextSize)
+			docs := splitByContextTokens(file, embed.ContextSize/int(*factor))
 
 			err = collection.AddDocuments(docs...)
 			if err != nil {
@@ -115,15 +124,32 @@ func main() {
 			log.Printf("(%02d of %02d). Done: %s", pos, len(files), file)
 		}
 	}
-
+	// filter
+	containsFilter := strings.Split(*contains, ";")
+	for i := range containsFilter {
+		containsFilter[i] = strings.TrimSpace(containsFilter[i])
+	}
 	// search
-	res, err := collection.Query(*queryText, vdb.QueryOption{MaxAmount: *amount})
+	res, err := collection.Query(
+		strings.Split(*queryText, ";"),
+		vdb.QueryOption{
+			MaxAmount: *amount,
+			DocFilter: func(doc *vdb.Document) (store bool) {
+				for _, c := range containsFilter {
+					if strings.Contains(doc.Content, c) {
+						store = true
+					}
+				}
+				return
+			},
+		})
 	if err != nil {
 		panic(err)
 	}
 	// prompt
 	tmpl := template.Must(template.New("prompt").Parse(`
-Summarize the document excerpts for the query "{{.Query}}".
+Summarize the document excerpts for the query "{{.Query}}" and use mandotary language of excerpts only and use only facts from excerpts.
+
 {{range .Docs}}
 
 Beginning of excerpt
