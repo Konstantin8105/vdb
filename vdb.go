@@ -491,9 +491,7 @@ func (collection *Collection) Query(queryTexts []string, options QueryOption) (_
 			return
 		}
 		for i := range docs {
-			var value float32
-			value = options.Compare.Calculate(queryCode, docs[i].Code)
-			sims[i].value += value
+			sims[i].value += options.Compare.Calculate(queryCode, docs[i].Code)
 		}
 		amount++
 	}
