@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -123,7 +124,8 @@ func (o Embeder) Calculate(text string) (code []float32, err error) {
 		return
 	}
 
-	code = normalizeVector(rb.Data[0].Embedding)
+	// do not normalize
+	code = rb.Data[0].Embedding
 	return
 }
 
@@ -305,10 +307,105 @@ func (collection *Collection) AddDocuments(docs ...*Document) (err error) {
 	return
 }
 
+type CompareVector uint8
+
+const (
+	CosineSimilarity CompareVector = iota
+	EuclideanDistance
+	ManhattanDistance
+	DotProduct
+	PearsonCorrelation
+	ChebyshevDistance
+)
+
+// Calculate вычисляет выбранную метрику между двумя векторами a и b.
+// Предполагается, что a и b имеют одинаковую длину. Если длина разная,
+// функция возвращает 0 (можно также добавить panic или ошибку).
+func (c CompareVector) Calculate(a, b []float32) float32 {
+	if len(a) != len(b) || len(a) == 0 {
+		return 0
+	}
+	n := len(a)
+
+	switch c {
+	case CosineSimilarity:
+		var dot, normA, normB float64
+		for i := range n {
+			ai, bi := float64(a[i]), float64(b[i])
+			dot += ai * bi
+			normA += ai * ai
+			normB += bi * bi
+		}
+		if normA == 0 || normB == 0 {
+			return 0
+		}
+		return float32(dot / (math.Sqrt(normA) * math.Sqrt(normB)))
+
+	case EuclideanDistance:
+		var sum float64
+		for i := range n {
+			diff := float64(a[i] - b[i])
+			sum += diff * diff
+		}
+		return float32(math.Sqrt(sum))
+
+	case ManhattanDistance:
+		var sum float64
+		for i := range n {
+			sum += math.Abs(float64(a[i] - b[i]))
+		}
+		return float32(sum)
+
+	case DotProduct:
+		var dot float64
+		for i := range n {
+			dot += float64(a[i]) * float64(b[i])
+		}
+		return float32(dot)
+
+	case PearsonCorrelation:
+		// Вычисляем средние арифметические
+		var meanA, meanB float64
+		for i := range n {
+			meanA += float64(a[i])
+			meanB += float64(b[i])
+		}
+		meanA /= float64(n)
+		meanB /= float64(n)
+
+		var num, denA, denB float64
+		for i := range n {
+			ai := float64(a[i]) - meanA
+			bi := float64(b[i]) - meanB
+			num += ai * bi
+			denA += ai * ai
+			denB += bi * bi
+		}
+		if denA == 0 || denB == 0 {
+			return 0
+		}
+		return float32(num / (math.Sqrt(denA) * math.Sqrt(denB)))
+
+	case ChebyshevDistance:
+		var maxDiff float64
+		for i := range n {
+			diff := math.Abs(float64(a[i] - b[i]))
+			if diff > maxDiff {
+				maxDiff = diff
+			}
+		}
+		return float32(maxDiff)
+
+	default:
+		return 0
+	}
+}
+
 type QueryOption struct {
 	MaxAmount       int
 	DocFilter       func(doc *Document) (store bool)
-	MinimalDistance float32 // [-1...+1]
+	MinimalDistance float32
+	Compare         CompareVector
 }
 
 func (collection *Collection) Query(queryTexts []string, options QueryOption) (_ []*Document, err error) {
@@ -353,10 +450,7 @@ func (collection *Collection) Query(queryTexts []string, options QueryOption) (_
 		}
 		for i := range docs {
 			var value float32
-			value, err = dotProduct(queryCode, docs[i].Code)
-			if err != nil {
-				return
-			}
+			value = options.Compare.Calculate(queryCode, docs[i].Code)
 			sims[i].value += value
 		}
 		amount++

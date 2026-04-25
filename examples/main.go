@@ -142,6 +142,7 @@ func main() {
 				}
 				return
 			},
+			Compare: vdb.CosineSimilarity,
 		})
 	if err != nil {
 		panic(err)

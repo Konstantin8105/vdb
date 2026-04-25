@@ -87,12 +87,29 @@ func Test(t *testing.T) {
 					if len(collection2.Documents) != 2 {
 						t.Fatalf("not valid amount: %d", len(collection2.Documents))
 					}
-					rs, err = collection.Query([]string{"one"}, QueryOption{MinimalDistance: -1, MaxAmount: 1})
-					if err != nil {
-						t.Fatal(err)
-					}
-					if len(rs) != 1 {
-						t.Fatalf("not valid amount: %d", len(rs))
+					for _, cv := range []CompareVector{
+						CosineSimilarity,
+						EuclideanDistance,
+						ManhattanDistance,
+						DotProduct,
+						PearsonCorrelation,
+						ChebyshevDistance,
+					} {
+						t.Run(fmt.Sprintf("%0d", cv), func(t *testing.T) {
+							rs, err = collection.Query(
+								[]string{"one"},
+								QueryOption{
+									MinimalDistance: -1,
+									MaxAmount:       1,
+									Compare:         cv,
+								})
+							if err != nil {
+								t.Fatal(err)
+							}
+							if len(rs) != 1 {
+								t.Fatalf("not valid amount: %d", len(rs))
+							}
+						})
 					}
 				})
 			}
