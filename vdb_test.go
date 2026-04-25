@@ -10,9 +10,10 @@ func Test(t *testing.T) {
 	tb := "./testdata"
 	for ie, emb := range []Embeder{
 		{
-			Model:    "text-embedding-nomic-embed-text-v1.5@q8_0",
-			Endpoint: "http://127.0.0.1:1234/v1",
-			Key:      "lmstudio",
+			Model:       "text-embedding-nomic-embed-text-v1.5@q8_0",
+			Endpoint:    "http://127.0.0.1:1234/v1",
+			Key:         "lmstudio",
+			ContextSize: 2048,
 		},
 	} {
 		t.Run(fmt.Sprintf("embeder_%d", ie), func(t *testing.T) {

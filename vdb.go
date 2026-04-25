@@ -24,7 +24,7 @@ type Embeder struct {
 	Endpoint string // API endpoint URL, e.g., "http://127.0.0.1:1234/v1"
 	Key      string // API key for external providers (optional)
 
-	// ContextSize int // Maximum context window size in tokens
+	ContextSize int // Maximum context window size in tokens
 
 	RequestTimeout time.Duration
 }
@@ -133,6 +133,10 @@ type Document struct {
 	Code    []float32 // embedding code array
 
 	filename string
+}
+
+func (doc Document) String() string {
+	return fmt.Sprintf("Id: %s\n%s\n", doc.ID, doc.Content)
 }
 
 func (doc Document) hash() string {
@@ -347,7 +351,7 @@ func (collection *Collection) Query(queryText string, options QueryOption) (_ []
 	}
 
 	sort.Slice(sims, func(i, j int) bool {
-		return sims[i].value < sims[j].value
+		return sims[j].value < sims[i].value
 	})
 
 	var res []*Document
