@@ -330,6 +330,7 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 	switch c {
 	case CosineSimilarity:
 		// Cosine Similarity:
+		// Formula: cos(θ) = (A·B) / (||A|| ||B||) = (∑ a_i b_i) / (√∑a_i² * √∑b_i²)
 		// Description: measures the cosine of the angle between vectors, ignoring their magnitude.
 		// Result range: from -1 to 1.
 		//   -1 – vectors point in opposite directions,
@@ -351,6 +352,7 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 
 	case EuclideanDistance:
 		// Euclidean Distance (L2):
+		// Formula: d = √(∑ (a_i - b_i)²)
 		// Description: geometric distance between points in multi‑dimensional space.
 		// Result range: from 0 to +∞.
 		//   0 – vectors are identical,
@@ -365,6 +367,7 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 
 	case ManhattanDistance:
 		// Manhattan Distance (L1, Cityblock):
+		// Formula: d = ∑ |a_i - b_i|
 		// Description: sum of absolute differences along each coordinate.
 		// Result range: from 0 to +∞.
 		//   0 – vectors are identical,
@@ -378,6 +381,7 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 
 	case DotProduct:
 		// Dot Product:
+		// Formula: A·B = ∑ a_i b_i
 		// Description: sum of products of corresponding components.
 		// Result range: from -∞ to +∞ (depends on vector lengths and values).
 		// For normalized (L2‑norm=1) vectors it equals cosine similarity.
@@ -391,6 +395,8 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 
 	case PearsonCorrelation:
 		// Pearson Correlation:
+		// Formula: r = (∑ (a_i - μ_A)(b_i - μ_B)) / (√∑(a_i-μ_A)² * √∑(b_i-μ_B)²)
+		//   where μ_A = (1/n)∑a_i, μ_B = (1/n)∑b_i
 		// Description: measures linear dependence between vector components,
 		// centering each vector (subtracting the mean). Effectively cosine similarity
 		// of centered data.
@@ -423,6 +429,7 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 
 	case ChebyshevDistance:
 		// Chebyshev Distance (L∞):
+		// Formula: d = max_i |a_i - b_i|
 		// Description: maximum absolute difference along any coordinate.
 		// Result range: from 0 to +∞.
 		//   0 – vectors are identical,
