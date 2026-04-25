@@ -321,6 +321,7 @@ const (
 // Calculate computes the selected metric between two vectors a and b.
 // Assumes a and b have the same length. If lengths differ or length is zero,
 // the function returns 0 (can also panic or return an error if desired).
+// All metrics follow the rule: higher return value = more similar vectors.
 func (c CompareVector) Calculate(a, b []float32) float32 {
 	if len(a) != len(b) || len(a) == 0 {
 		return 0
@@ -331,13 +332,9 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 	case CosineSimilarity:
 		// Cosine Similarity:
 		// Formula: cos(θ) = (A·B) / (||A|| ||B||) = (∑ a_i b_i) / (√∑a_i² * √∑b_i²)
-		// Description: measures the cosine of the angle between vectors, ignoring their magnitude.
-		// Result range: from -1 to 1.
-		//   -1 – vectors point in opposite directions,
-		//    0 – orthogonal (independent),
-		//    1 – exactly the same direction.
-		// For typical embeddings (non-negative features) the result lies in [0,1].
-		// The closer to 1, the semantically closer the vectors.
+		// Description: measures the cosine of the angle between vectors.
+		// Result range: [-1, 1]. Larger = more similar (1 = identical direction, -1 = opposite).
+		// For non-negative embeddings, result lies in [0,1].
 		var dot, normA, normB float64
 		for i := range n {
 			ai, bi := float64(a[i]), float64(b[i])
@@ -351,42 +348,37 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 		return float32(dot / (math.Sqrt(normA) * math.Sqrt(normB)))
 
 	case EuclideanDistance:
-		// Euclidean Distance (L2):
-		// Formula: d = √(∑ (a_i - b_i)²)
-		// Description: geometric distance between points in multi‑dimensional space.
-		// Result range: from 0 to +∞.
-		//   0 – vectors are identical,
-		//   larger values indicate vectors are farther apart.
-		// Sensitive to feature scale; normalization recommended.
+		// Euclidean Distance converted to similarity:
+		// Raw distance: d = √(∑ (a_i - b_i)²)
+		// Converted similarity: sim = 1 / (1 + d)
+		// Description: geometric distance between points, then inverted to follow "higher = more similar".
+		// Result range: (0, 1]. 1 = identical vectors, approaches 0 as distance grows.
 		var sum float64
 		for i := range n {
 			diff := float64(a[i] - b[i])
 			sum += diff * diff
 		}
-		return float32(math.Sqrt(sum))
+		d := math.Sqrt(sum)
+		return float32(1.0 / (1.0 + d))
 
 	case ManhattanDistance:
-		// Manhattan Distance (L1, Cityblock):
-		// Formula: d = ∑ |a_i - b_i|
-		// Description: sum of absolute differences along each coordinate.
-		// Result range: from 0 to +∞.
-		//   0 – vectors are identical,
-		//   larger values indicate larger differences.
-		// More robust to outliers than Euclidean distance, and computationally cheaper.
+		// Manhattan Distance converted to similarity:
+		// Raw distance: d = ∑ |a_i - b_i|
+		// Converted similarity: sim = 1 / (1 + d)
+		// Description: sum of absolute differences, then inverted.
+		// Result range: (0, 1]. 1 = identical vectors, approaches 0 as distance grows.
 		var sum float64
 		for i := range n {
 			sum += math.Abs(float64(a[i] - b[i]))
 		}
-		return float32(sum)
+		return float32(1.0 / (1.0 + sum))
 
 	case DotProduct:
 		// Dot Product:
 		// Formula: A·B = ∑ a_i b_i
 		// Description: sum of products of corresponding components.
-		// Result range: from -∞ to +∞ (depends on vector lengths and values).
+		// Result range: (-∞, +∞). Larger positive = more similar (assuming non-negative vectors).
 		// For normalized (L2‑norm=1) vectors it equals cosine similarity.
-		// Large positive value indicates closeness in direction and/or magnitude.
-		// Fastest to compute; widely used in vector databases.
 		var dot float64
 		for i := range n {
 			dot += float64(a[i]) * float64(b[i])
@@ -396,16 +388,9 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 	case PearsonCorrelation:
 		// Pearson Correlation:
 		// Formula: r = (∑ (a_i - μ_A)(b_i - μ_B)) / (√∑(a_i-μ_A)² * √∑(b_i-μ_B)²)
-		//   where μ_A = (1/n)∑a_i, μ_B = (1/n)∑b_i
-		// Description: measures linear dependence between vector components,
-		// centering each vector (subtracting the mean). Effectively cosine similarity
-		// of centered data.
-		// Result range: from -1 to 1.
-		//   -1 – perfect negative correlation,
-		//    0 – uncorrelated,
-		//    1 – perfect positive correlation.
-		// Useful for features with non‑zero mean, but often unnecessary for typical embeddings.
-		// Compute arithmetic means
+		// where μ_A = (1/n)∑a_i, μ_B = (1/n)∑b_i
+		// Description: measures linear dependence; cosine similarity of centered vectors.
+		// Result range: [-1, 1]. Larger = more similar (1 = perfect positive correlation).
 		var meanA, meanB float64
 		for i := range n {
 			meanA += float64(a[i])
@@ -428,13 +413,11 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 		return float32(num / (math.Sqrt(denA) * math.Sqrt(denB)))
 
 	case ChebyshevDistance:
-		// Chebyshev Distance (L∞):
-		// Formula: d = max_i |a_i - b_i|
-		// Description: maximum absolute difference along any coordinate.
-		// Result range: from 0 to +∞.
-		//   0 – vectors are identical,
-		//   larger value means vectors differ significantly in at least one coordinate.
-		// Useful when only the maximum deviation matters, but loses information about other coordinates.
+		// Chebyshev Distance converted to similarity:
+		// Raw distance: d = max_i |a_i - b_i|
+		// Converted similarity: sim = 1 / (1 + d)
+		// Description: maximum absolute difference, then inverted.
+		// Result range: (0, 1]. 1 = identical vectors, approaches 0 as distance grows.
 		var maxDiff float64
 		for i := range n {
 			diff := math.Abs(float64(a[i] - b[i]))
@@ -442,7 +425,7 @@ func (c CompareVector) Calculate(a, b []float32) float32 {
 				maxDiff = diff
 			}
 		}
-		return float32(maxDiff)
+		return float32(1.0 / (1.0 + maxDiff))
 
 	default:
 		// Unknown comparison type – return 0.
