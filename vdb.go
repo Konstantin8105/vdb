@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -304,6 +305,24 @@ func (collection *Collection) AddDocuments(docs ...*Document) (err error) {
 			return
 		}
 	}
+	return
+}
+
+func (collection *Collection) RemoveDocuments(filter func(doc *Document) (remove bool)) (err error) {
+	if filter == nil {
+		err = fmt.Errorf("filter is nil")
+		return
+	}
+	collection.Documents = slices.DeleteFunc(collection.Documents, func(doc *Document) bool {
+		remove := filter(doc)
+		if remove {
+			err1 := os.Remove(doc.filename)
+			if err1 != nil {
+				err = errors.Join(err, err1)
+			}
+		}
+		return remove
+	})
 	return
 }
 
