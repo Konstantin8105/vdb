@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -52,7 +51,7 @@ func (o Embeder) Calculate(text string) (code []float32, err error) {
 	}
 	endpoint += "embeddings"
 
-	log.Printf("AI-comp endpoint: %s", endpoint)
+	// log.Printf("AI-comp endpoint: %s", endpoint)
 
 	pr := map[string]string{
 		"input": text,
@@ -82,7 +81,7 @@ func (o Embeder) Calculate(text string) (code []float32, err error) {
 		err = fmt.Errorf("http error: %w", err)
 		return
 	}
-	log.Printf("RouterAI response: %v", resp)
+	// log.Printf("RouterAI response: %v", resp)
 	defer func() {
 		errC := resp.Body.Close()
 		if errC != nil {
