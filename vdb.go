@@ -20,6 +20,7 @@ import (
 	"time"
 )
 
+// OpenAI compatibility
 type Embeder struct {
 	Model string // AI model name, e.g., "text-embedding-nomic-embed-text-v1.5"
 
@@ -31,6 +32,16 @@ type Embeder struct {
 	RequestTimeout time.Duration
 }
 
+// Calculate embedding
+//
+// example :
+//
+//	{
+//	  "model": "text-embedding-3-large",
+//	  "input": "Текст для векторизации, который может быть длиной до 8192 токенов.",
+//	  "dimensions": 1024,
+//	  "encoding_format": "float"
+//	}
 func (o Embeder) Calculate(text string) (code []float32, err error) {
 	// Validate endpoint
 	if o.Endpoint == "" {
@@ -56,9 +67,14 @@ func (o Embeder) Calculate(text string) (code []float32, err error) {
 
 	// log.Printf("AI-comp endpoint: %s", endpoint)
 
-	pr := map[string]string{
-		"input": text,
-		"model": o.Model,
+	pr := struct {
+		Input      string `json:"input"`
+		Model      string `json:"model"`
+		Dimensions int    `json:"dimensions"`
+	}{
+		Input:      text,
+		Model:      o.Model,
+		Dimensions: o.ContextSize,
 	}
 
 	jsonData, err := json.Marshal(pr)
@@ -130,10 +146,36 @@ func (o Embeder) Calculate(text string) (code []float32, err error) {
 	return
 }
 
+// type Request struct {
+// 	Model          string   `json:"model"`                     // Обязательно: "text-embedding-3-small", "text-embedding-3-large" и др.
+// 	Input          []string `json:"input"`                     // Один текст или массив текстов (макс. 8192 токенов на элемент)
+// 	Dimensions     *int     `json:"dimensions,omitempty"`      // Опционально: уменьшение размерности (1..1536/3072)
+// 	EncodingFormat string   `json:"encoding_format,omitempty"` // Опционально: "float" или "base64" (по умолчанию "float")
+// }
+
+// type Responce struct {
+// 	Object string          `json:"object"` // всегда "list"
+// 	Data   []EmbeddingData `json:"data"`
+// 	Model  string          `json:"model"`
+// 	Usage  UsageInfo       `json:"usage"`
+// }
+
+// type EmbeddingData struct {
+// 	Object    string    `json:"object"`    // "embedding"
+// 	Index     int       `json:"index"`     // Порядковый индекс в массиве input
+// 	Embedding []float64 `json:"embedding"` // Вектор размерностью = dimensions (или максимальной по умолчанию)
+// }
+
+// type UsageInfo struct {
+// 	PromptTokens int `json:"prompt_tokens"` // Количество токенов во входном тексте
+// 	TotalTokens  int `json:"total_tokens"`  // = prompt_tokens (для эмбеддингов совпадает)
+// }
+
 type Document struct {
 	ID      string
 	Content string
-	Code    []float32 // embedding code array
+	// TODO add Request for compare model
+	Code []float32 // embedding code array // TODO: use Responce
 
 	filename string
 }
