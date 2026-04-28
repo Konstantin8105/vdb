@@ -9,12 +9,7 @@ import (
 func Test(t *testing.T) {
 	tb := "./testdata"
 	for ie, emb := range []Embeder{
-		{
-			Model:       "text-embedding-nomic-embed-text-v1.5@q8_0",
-			Endpoint:    "http://127.0.0.1:1234/v1",
-			Key:         "lmstudio",
-			ContextSize: 2048,
-		},
+		DefaultEmbeder(),
 	} {
 		t.Run(fmt.Sprintf("embeder_%d", ie), func(t *testing.T) {
 			for _, compress := range []bool{false, true} {
@@ -115,4 +110,17 @@ func Test(t *testing.T) {
 			}
 		})
 	}
+	//	t.Run("embedding", func(t *testing.T) {
+	//		embed := DefaultEmbeder()
+	//		for i := range 20 {
+	//			t.Run(fmt.Sprintf("%03d", i), func(t *testing.T) {
+	//				text := strings.Repeat("Привет как твои дела", i)
+	//				code, err := embed.Calculate(text)
+	//				_ = code
+	//				if err != nil {
+	//					t.Error(err)
+	//				}
+	//			})
+	//		}
+	//	})
 }

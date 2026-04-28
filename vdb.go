@@ -27,9 +27,32 @@ type Embeder struct {
 	Endpoint string // API endpoint URL, e.g., "http://127.0.0.1:1234/v1"
 	Key      string // API key for external providers (optional)
 
+	Dimension   int //
 	ContextSize int // Maximum context window size in tokens
 
 	RequestTimeout time.Duration
+}
+
+func DefaultEmbeder() Embeder {
+	return Embeder{
+		// > ollama show qwen3-embedding:latest
+		//   Model
+		//     architecture        qwen3
+		//     parameters          7.6B
+		//     context length      40960
+		//     embedding length    4096
+		//     quantization        Q4_K_M
+		//
+		//   Capabilities
+		//     embedding
+		//
+		// base_url='http://localhost:11434/v1/embeddings'
+		Model:       "qwen3-embedding",
+		Endpoint:    "http://127.0.0.1:11434/v1",
+		Key:         "ollama",
+		ContextSize: 40960,
+		Dimension:   4096,
+	}
 }
 
 // Calculate embedding
@@ -67,6 +90,11 @@ func (o Embeder) Calculate(text string) (code []float32, err error) {
 
 	// log.Printf("AI-comp endpoint: %s", endpoint)
 
+	dimensions := o.Dimension
+	if dimensions == 0 {
+		dimensions = 2048 // default values
+	}
+
 	pr := struct {
 		Input      string `json:"input"`
 		Model      string `json:"model"`
@@ -74,7 +102,7 @@ func (o Embeder) Calculate(text string) (code []float32, err error) {
 	}{
 		Input:      text,
 		Model:      o.Model,
-		Dimensions: o.ContextSize,
+		Dimensions: dimensions,
 	}
 
 	jsonData, err := json.Marshal(pr)

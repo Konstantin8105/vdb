@@ -47,10 +47,22 @@ func splitByContextTokens(filename string, tokens int) (documents []*vdb.Documen
 		if len(runes) <= finish {
 			finish = len(runes)
 		} else {
+			found := false
 			for range findspace {
 				finish -= 1
-				if unicode.IsSpace(runes[finish]) {
+				if runes[finish] == '\n' {
+					found = true
 					break
+				}
+			}
+			if !found {
+				finish += findspace
+				for range findspace {
+					finish -= 1
+					if unicode.IsSpace(runes[finish]) {
+						found = true
+						break
+					}
 				}
 			}
 		}
@@ -94,15 +106,17 @@ func main() {
 	flag.Parse()
 
 	// embeder
-	embed := vdb.Embeder{
-		// BAD MODELS:
-		// "text-embedding-nomic-embed-text-v1.5@q8_0", 2048
-		//
-		Model:       "text-embedding-qwen3-embedding-0.6b",
-		Endpoint:    "http://127.0.0.1:1234/v1",
-		Key:         "lmstudio",
-		ContextSize: 10000,
-	}
+	embed := vdb.DefaultEmbeder()
+	// vdb.Embeder{
+	// 	// BAD MODELS:
+	// 	// "text-embedding-nomic-embed-text-v1.5@q8_0", 2048
+	// 	//
+	// 	Model:       "text-embedding-qwen3-embedding-0.6b",
+	// 	Endpoint:    "http://127.0.0.1:1234/v1",
+	// 	Key:         "lmstudio",
+	// 	ContextSize: 10000,
+	// 	Dimension:   4096,
+	// }
 	// create collection if not exist
 	collection, err := vdb.New("./rag/", true, embed)
 	if err != nil {
