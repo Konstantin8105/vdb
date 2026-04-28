@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -136,6 +137,10 @@ func main() {
 				panic(err)
 			}
 			log.Printf("(%02d of %02d). Done: %s", pos, len(files), file)
+		}
+		if *queryText == "" {
+			fmt.Fprintf(os.Stdout, "Empty query text")
+			return
 		}
 	}
 	// filter
