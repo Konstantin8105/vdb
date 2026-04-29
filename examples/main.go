@@ -40,33 +40,48 @@ func splitByContextTokens(filename string, tokens int) (documents []*vdb.Documen
 	intersect := blockSize / 3 // 3
 	findspace := max(10, intersect/5)
 
+	getPos := func(pos int) int {
+		base := pos
+		if len(runes) <= pos {
+			return len(runes)
+		}
+		for range findspace {
+			pos -= 1
+			if pos < 0 {
+				return 0
+			}
+			if runes[pos] == '\n' {
+				return pos
+			}
+		}
+		pos = base
+		for range findspace {
+			pos -= 1
+			if pos < 0 {
+				return 0
+			}
+			if runes[pos] == '.' {
+				return pos
+			}
+		}
+		pos = base
+		for range findspace {
+			pos -= 1
+			if pos < 0 {
+				return 0
+			}
+			if unicode.IsSpace(runes[pos]) {
+				return pos
+			}
+		}
+		return base
+	}
+
 	start := 0
 	finish := 0
 	part := 0
 	for {
-		finish = start + blockSize
-		if len(runes) <= finish {
-			finish = len(runes)
-		} else {
-			found := false
-			for range findspace {
-				finish -= 1
-				if runes[finish] == '\n' {
-					found = true
-					break
-				}
-			}
-			if !found {
-				finish += findspace
-				for range findspace {
-					finish -= 1
-					if unicode.IsSpace(runes[finish]) {
-						found = true
-						break
-					}
-				}
-			}
-		}
+		finish = getPos(start + blockSize)
 		body := string(runes[start:finish])
 		documents = append(documents, &vdb.Document{
 			ID: Block{
@@ -80,16 +95,9 @@ func splitByContextTokens(filename string, tokens int) (documents []*vdb.Documen
 			break
 		}
 		start += blockSize - intersect
+		start = getPos(start)
 		if len(runes) <= start {
 			break
-		}
-		if findspace < start {
-			for range findspace {
-				start -= 1
-				if unicode.IsSpace(runes[start]) {
-					break
-				}
-			}
 		}
 	}
 	return

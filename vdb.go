@@ -17,6 +17,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -35,24 +36,39 @@ type Embeder struct {
 
 func DefaultEmbeder() Embeder {
 	return Embeder{
-		// > ollama show qwen3-embedding:latest
-		//   Model
-		//     architecture        qwen3
-		//     parameters          7.6B
-		//     context length      40960
-		//     embedding length    4096
-		//     quantization        Q4_K_M
+		// > lmstudio maximum model parameters:
+		// Model Type           Text Embedding
+		// Models	            Qwen3-Embedding-0.6B
+		// Size	                0.6B
+		// Layers	            28
+		// Sequence Length	    32K
+		// Embedding Dimension	1024
 		//
-		//   Capabilities
-		//     embedding
-		//
-		// base_url='http://localhost:11434/v1/embeddings'
-		Model:       "qwen3-embedding",
-		Endpoint:    "http://127.0.0.1:11434/v1",
-		Key:         "ollama",
-		ContextSize: 40960,
-		Dimension:   4096,
+		Model:       "text-embedding-qwen3-embedding-0.6b",
+		Endpoint:    "http://192.168.56.1:1234/v1/",
+		Key:         "lmstudio",
+		ContextSize: 8000, // minimaze for calculate on GPU
+		Dimension:   1024,
 	}
+	//	return Embeder{
+	//		// > ollama show qwen3-embedding:latest
+	//		//   Model
+	//		//     architecture        qwen3
+	//		//     parameters          7.6B
+	//		//     context length      40960
+	//		//     embedding length    4096
+	//		//     quantization        Q4_K_M
+	//		//
+	//		//   Capabilities
+	//		//     embedding
+	//		//
+	//		// base_url='http://localhost:11434/v1/embeddings'
+	//		Model:       "qwen3-embedding",
+	//		Endpoint:    "http://127.0.0.1:11434/v1",
+	//		Key:         "ollama",
+	//		ContextSize: 40960,
+	//		Dimension:   4096,
+	//	}
 }
 
 // Calculate embedding
@@ -356,21 +372,63 @@ func (collection *Collection) AddDocuments(docs ...*Document) (err error) {
 		}
 		if doc.Content == "" {
 			err = fmt.Errorf("content doc is empty")
+			return
 		}
 	}
 	collection.Documents = append(collection.Documents, docs...)
-	for i := range docs {
-		if 0 < len(docs[i].Code) {
-			continue
+	// calculation
+	seq := false
+	if seq {
+		for i := range docs {
+			if 0 < len(docs[i].Code) {
+				continue
+			}
+			// update code
+			var code []float32
+			code, err = collection.Embed.Calculate(docs[i].Content)
+			if err != nil {
+				return
+			}
+			docs[i].Code = code
+			err = docs[i].Write(collection.path, collection.compress)
+			if err != nil {
+				return
+			}
 		}
-		// update code
-		var code []float32
-		code, err = collection.Embed.Calculate(docs[i].Content)
-		if err != nil {
-			return
+	} else {
+		parallel := 40
+		var wg sync.WaitGroup
+		wg.Add(parallel)
+		indexes := make(chan int)
+		errs := make([]error, len(docs))
+		for range parallel {
+			go func() {
+				defer wg.Done()
+				for i := range indexes {
+					if 0 < len(docs[i].Code) {
+						continue
+					}
+					// update code
+					code, err := collection.Embed.Calculate(docs[i].Content)
+					if err != nil {
+						errs[i] = err
+						continue
+					}
+					docs[i].Code = code
+					err = docs[i].Write(collection.path, collection.compress)
+					if err != nil {
+						errs[i] = err
+						continue
+					}
+				}
+			}()
 		}
-		docs[i].Code = code
-		err = docs[i].Write(collection.path, collection.compress)
+		for i := range docs {
+			indexes <- i
+		}
+		close(indexes)
+		wg.Wait()
+		err = errors.Join(errs...)
 		if err != nil {
 			return
 		}
