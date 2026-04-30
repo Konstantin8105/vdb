@@ -176,7 +176,7 @@ func main() {
 	}
 	// prompt
 	tmpl := template.Must(template.New("prompt").Parse(`
-Summarize the document excerpts for the query "{{.Query}}" and use mandotary language of excerpts only and use only facts from excerpts.
+Summarize the document excerpts for the query "{{.Query}}" and use mandotary language of excerpts only and use only facts from excerpts and also add answers on query and add links on excerpt inplace of used fact.
 
 {{range .Docs}}
 
