@@ -45,7 +45,7 @@ func DefaultEmbeder() Embeder {
 		// Embedding Dimension	1024
 		//
 		Model:       "text-embedding-qwen3-embedding-0.6b",
-		Endpoint:    "http://192.168.56.1:1234/v1/",
+		Endpoint:    "http://127.0.0.1:1234/v1/",
 		Key:         "lmstudio",
 		ContextSize: 8000, // minimaze for calculate on GPU
 		Dimension:   1024,
