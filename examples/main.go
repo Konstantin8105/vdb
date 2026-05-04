@@ -163,6 +163,10 @@ func main() {
 			MaxAmount: *amount,
 			DocFilter: func(doc *vdb.Document) (store bool) {
 				for _, c := range containsFilter {
+					c := strings.TrimSpace(c)
+					if c == "" {
+						continue
+					}
 					if strings.Contains(doc.Content, c) {
 						store = true
 					}
