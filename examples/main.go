@@ -162,14 +162,19 @@ func main() {
 		vdb.QueryOption{
 			MaxAmount: *amount,
 			DocFilter: func(doc *vdb.Document) (store bool) {
+				empty := 0
 				for _, c := range containsFilter {
 					c := strings.TrimSpace(c)
 					if c == "" {
+						empty++
 						continue
 					}
 					if strings.Contains(doc.Content, c) {
 						store = true
 					}
+				}
+				if len(containsFilter) == 0 || empty == len(containsFilter) {
+					return true
 				}
 				return
 			},
